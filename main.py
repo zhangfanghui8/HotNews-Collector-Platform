@@ -1,4 +1,4 @@
-from scripts.processors.adapters.juejinfetch import JuejinFetcher
+from scripts.adapters.juejinfetch import JuejinFetcher
 
 def main():
     # 实例化适配器
