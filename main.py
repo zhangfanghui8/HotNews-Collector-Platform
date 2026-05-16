@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 
 from scripts.adapters.juejinfetch import JuejinFetcher
+from scripts.adapters.qbitai_fetch import QbitaiFetcher
 from scripts.dispatchers import build_dispatchers, dispatch_all
 from scripts.dispatchers.core.config import load_config
 from scripts.dispatchers.push_guide import (
@@ -11,7 +12,9 @@ from scripts.dispatchers.push_guide import (
 from scripts.format_report import format_markdown, format_push_markdown
 
 ADAPTERS = [
-    JuejinFetcher(),
+    JuejinFetcher(mode="hot"),
+    JuejinFetcher(mode="latest"),
+    QbitaiFetcher(),
 ]
 
 DEFAULT_LIMIT = 10
