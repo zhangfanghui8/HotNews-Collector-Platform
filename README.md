@@ -1,64 +1,146 @@
-概述
-HotNews-Collector 是一个模块化的自动化技能，旨在统一采集国内主流技术与资讯平台（掘金、36氪、知乎等）的热榜数据，并提供标准化的数据输出，以便于后续进行 AI 摘要分析或推送。
+# HotNews Collector Platform
 
-2. 架构设计
-本 Skill 采用适配器模式 (Adapter Pattern)，确保核心逻辑与各平台的爬取细节解耦。
+模块化 AI 资讯采集与推送平台，同时作为 **Cursor Agent Skill** 使用：从国内技术与 AI 平台拉取热榜，生成结构化 Markdown 报告，并可推送到微信、钉钉等即时通讯工具。
 
-Adapter 层：负责各平台的 HTTP 请求及数据清洗，映射为统一标准格式。
+## 功能特性
 
-Processor 层：负责对采集到的 Raw Data 进行聚合、去重及 LLM 智能摘要。
+- **热榜采集**：适配器模式接入各平台（当前已接入掘金 AI 热榜）
+- **结构化报告**：终端输出完整 Markdown；推送使用精简版正文
+- **多渠道推送**：企业微信群机器人、PushPlus（个人微信）、钉钉群机器人
+- **配置引导**：推送未就绪或失败时，终端输出分步骤排查指引
+- **Skill 工作流**：通过 `SKILL.md` 指导 Agent 执行采集、补全摘要并处理推送结果
 
-Dispatcher 层：负责将处理后的数据发送至钉钉/微信/飞书。
+## 架构设计
 
-3. 统一数据结构 (Standard Schema)
-无论来源如何，所有插件必须返回如下 JSON 格式：
+```
+采集 (Adapter) → 格式化 (format_report) → 分发 (Dispatcher)
+```
 
-JSON
-{
-  "source": "平台名称",
-  "title": "标题",
-  "url": "详情页链接",
-  "heat": 0,
-  "timestamp": "ISO8601时间"
-}
-4. 目录结构
-Plaintext
-hotnews-skill/
-├── README.md               # 本说明文档
-├── main.py                 # 核心控制逻辑 (Processor)
-├── adapters/               # 平台适配器目录
-│   ├── base.py             # 抽象基类
-│   ├── juejin.py           # 掘金实现
-│   └── example_platform.py # 其他平台模板
-├── requirements.txt        # 依赖包
-└── config.yaml             # 配置文件 (Webhook, 定时参数等)
-5. 如何扩展新平台
-要在本 Skill 中增加一个新平台（例如：知乎），仅需三步：
+| 层级 | 目录 | 职责 |
+|------|------|------|
+| **Adapter** | `scripts/adapters/` | 各平台 HTTP 请求与数据清洗，统一返回 `Article` |
+| **Report** | `scripts/format_report.py` | 生成完整报告 / 推送用精简 Markdown |
+| **Dispatcher** | `scripts/dispatchers/` | 读取配置，向微信、钉钉等渠道发送消息 |
 
-继承基类：在 adapters/ 下创建 zhihu.py，继承 BaseAdapter。
+## 目录结构
 
-实现逻辑：实现 fetch() 方法，调用目标 API 并映射为 第3节 定义的标准格式。
+```
+HotNews-Collector-Platform/
+├── main.py                      # 入口：采集、出报告、可选推送
+├── SKILL.md                     # Cursor Agent 技能说明
+├── README.md
+├── requirements.txt
+├── config.yaml.example          # 配置模板（复制为 config.yaml）
+├── config.yaml                  # 本地配置（已 gitignore，需自行创建）
+├── scripts/
+│   ├── adapters/
+│   │   ├── core/
+│   │   │   ├── article.py       # 统一文章模型
+│   │   │   └── base_fetch.py    # 适配器抽象基类
+│   │   └── juejinfetch.py       # 掘金热榜
+│   ├── format_report.py         # Markdown 报告生成
+│   └── dispatchers/
+│       ├── core/
+│       │   ├── base.py          # 推送器基类
+│       │   └── config.py        # 配置加载
+│       ├── wecom.py             # 企业微信
+│       ├── pushplus.py          # PushPlus → 个人微信
+│       ├── dingtalk.py          # 钉钉
+│       └── push_guide.py        # 配置检查与失败引导
+└── docs/
+    └── ARCHITECTURE.md
+```
 
-注册插件：在 main.py 的 ADAPTERS 列表中添加 ZhihuAdapter() 实例。
+## 统一数据模型 (`Article`)
 
-6. 使用说明
-环境依赖
-Bash
-pip install requests pyyaml
-快速启动
-配置：修改 config.yaml，填入你的 DINGTALK_WEBHOOK 地址。
+| 字段 | 说明 |
+|------|------|
+| `title` | 标题 |
+| `url` | 详情链接 |
+| `source` | 来源平台名称 |
+| `publish_time` | 发布时间 |
+| `summary` | 摘要 |
+| `category` | 分类 |
+| `rank` | 榜单排名 |
+| `hot_score` | 热度值 |
 
-运行：
+## 快速开始
 
-Bash
+### 1. 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+需 Python 3.8+，可访问各平台 API 的网络环境。
+
+### 2. 采集并生成报告
+
+```bash
 python main.py
-7. 待办功能 (Roadmap)
-[x] 掘金热榜适配器
+```
 
-[ ] 36氪/知乎适配器集成
+终端将输出完整 Markdown 热点报告。
 
-[ ] AI 智能摘要 (集成 LLM API 进行每日内容提炼)
+### 3. 推送到微信 / 钉钉（可选）
 
-[ ] 自动去重逻辑 (基于标题相似度)
+```bash
+copy config.yaml.example config.yaml   # Windows
+# cp config.yaml.example config.yaml   # macOS / Linux
+```
 
-[ ] 多渠道分发 (钉钉/微信/飞书)
+编辑 `config.yaml`，启用至少一个渠道并填写密钥，然后：
+
+```bash
+python main.py --push
+```
+
+或在 `config.yaml` 中设置 `push.enabled: true`，仅执行 `python main.py` 也会自动推送。
+
+### 推送渠道说明
+
+| 渠道 | 配置项 | 说明 |
+|------|--------|------|
+| 企业微信 | `wecom.webhook_key` | 群机器人 Webhook 中 `key=` 后的字符串 |
+| 个人微信 | `pushplus.token` | 注册 [PushPlus](https://www.pushplus.plus)，需实名认证 |
+| 钉钉 | `dingtalk.access_token` | 群自定义机器人 Webhook；加签时需填 `secret` |
+
+**环境变量（可选）**：`WECOM_WEBHOOK_KEY`、`PUSHPLUS_TOKEN`、`DINGTALK_ACCESS_TOKEN`、`DINGTALK_SECRET`
+
+推送失败时，终端会打印错误码与修复步骤（如 `PUSHPLUS_NOT_VERIFIED`、`DINGTALK_SIGN_ERROR` 等）。
+
+## 作为 Cursor Skill 使用
+
+1. 在对话中引用 `@SKILL.md`
+2. 例如：「汇总今天 AI 技术热点」或「获取热点并推送到钉钉」
+3. Agent 将执行 `python main.py`（及可选的 `--push`），并基于真实输出补全报告
+
+安装到 Cursor 技能目录（`~/.cursor/skills/` 或 `.cursor/skills/`）后，可在任意项目中通过触发词自动加载。
+
+## 扩展新平台
+
+1. 在 `scripts/adapters/` 下新建适配器，继承 `BaseFetch`，实现 `fetch() -> List[Article]`
+2. 在 `main.py` 的 `ADAPTERS` 列表中注册实例
+
+```python
+ADAPTERS = [
+    JuejinFetcher(),
+    # YourPlatformFetcher(),
+]
+```
+
+## Roadmap
+
+- [x] 掘金 AI 热榜适配器
+- [x] Markdown 结构化报告
+- [x] 多渠道推送（企业微信 / PushPlus / 钉钉）
+- [x] 推送配置检查与失败引导
+- [x] Cursor Skill 文档（`SKILL.md`）
+- [ ] 36氪、知乎等平台适配器
+- [ ] 多源去重（基于标题相似度）
+- [ ] LLM 智能摘要（接入 API 自动提炼要点）
+- [ ] 定时任务与飞书推送
+
+## 许可证
+
+见项目仓库说明。

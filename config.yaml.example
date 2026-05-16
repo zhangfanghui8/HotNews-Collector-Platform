@@ -1,0 +1,27 @@
+# 复制为 config.yaml 并填写密钥（config.yaml 已加入 .gitignore）
+
+push:
+  # 为 true 时，运行 python main.py 会自动推送（也可用 --push 临时开启）
+  enabled: false
+
+  channels:
+    # 方式一：企业微信群机器人（推送到企业微信群）
+    # 获取：企业微信 → 群聊 → 群机器人 → 添加 → 复制 Webhook 地址中的 key 参数
+    wecom:
+      enabled: false
+      webhook_key: ""
+
+    # 方式二：PushPlus（推送到个人微信，需注册 https://www.pushplus.plus ）
+    pushplus:
+      enabled: false
+      token: ""
+      # 可选：一对一路由 token，见 PushPlus 文档
+      channel: ""
+
+    # 方式三：钉钉群自定义机器人
+    # 获取：钉钉 → 群设置 → 智能群助手 → 添加机器人 → 自定义 → Webhook
+    dingtalk:
+      enabled: false
+      access_token: ""
+      # 若机器人安全设置为「加签」，填写 SEC 开头的 secret；否则留空
+      secret: ""
