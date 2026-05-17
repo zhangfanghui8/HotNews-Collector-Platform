@@ -5,7 +5,11 @@ from .article import Article
 
 
 class BaseFetch(ABC):
-    """基础抓取器"""
+    """基础抓取器。
+
+    约定：一平台一文件；最热/最新用子类 ``mode`` 区分，在 main.ADAPTERS 中按维度注册。
+    详见项目根目录 prompt.md
+    """
 
     def __init__(self, url: str, source: str):
         self.url = url

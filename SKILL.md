@@ -29,7 +29,7 @@ python main.py
 ```
 
 - 采集逻辑位于 `scripts/adapters/`，各平台实现统一 `fetch()` 接口，返回标准 `Article` 结构
-- 新平台接入：在 `adapters/` 下新增适配器，并在 `main.py` 的 `ADAPTERS` 列表中注册
+- 新平台接入：在 `adapters/` 下**一平台一文件**；有最热/最新时用同一类的 `mode` 区分，在 `main.py` 的 `ADAPTERS` 中每个维度注册一行（见 `prompt.md` / `docs/ARCHITECTURE.md`）
 - 将终端输出的 Markdown **作为报告主体**；不得跳过脚本、凭空编造热榜条目
 
 若脚本执行失败或返回空数据，向用户说明原因（网络、依赖、适配器异常），再视情况协助排查；勿伪造标题与链接。

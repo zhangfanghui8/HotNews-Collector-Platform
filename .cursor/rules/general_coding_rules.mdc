@@ -1,0 +1,133 @@
+---
+description: 通用编码规范与 AI 行为准则，适用于所有代码编写、重构和交互场景。
+globs: *
+---
+# Cursor 通用编码规范与 AI 行为准则 (Global Cursor Rules)
+
+## 核心原则 (Core Philosophy)
+
+- **安全与稳定第一**：不引入未经验证的黑魔法或不稳定的第三方库；新增依赖需说明用途。
+- **清晰大于精简**：命名具备自解释性；复杂逻辑注释「为什么」，而非复述「做什么」。
+- **严谨的模块化**：单一职责（SRP），高内聚、低耦合。
+- **以仓库为准**：若项目已有约定（目录结构、命名、格式化工具），优先遵循现有代码风格。
+
+---
+
+## AI 行为约束 (AI Behavior Guidelines)
+
+### 1. 修改范围与完整性
+
+- **最小必要变更**：只改与任务相关的代码；避免无意义的全文件重写。
+- **禁止占位符**：不得使用 `// TODO: 保持原样`、`// ... 其他代码不变 ...`、`# 其余逻辑相同` 等省略写法；交付的代码片段在上下文中必须完整、可运行。
+- **工具约束**：若编辑器需要整文件才能应用补丁，仍应只改动有实际差异的区域，勿顺带「整理」无关代码。
+
+### 2. 错误处理与防御性编程
+
+- **边界捕获**：网络请求、文件 I/O、外部 API、推送等**边界层**必须使用 `try-except` / `try-catch` 或语言等价机制，并记录日志或返回明确错误信息。
+- **内部逻辑**：领域逻辑、纯函数、数据转换优先让异常向上抛出，由调用方统一处理，避免层层包裹导致根因被掩盖。
+- **禁止空捕获**：不允许空的 `except:` / `catch (e) {}`；捕获后须日志、降级或 re-raise。
+- **优雅降级**：单源采集失败不应导致整批任务崩溃（记录失败源，继续其他源）。
+
+### 3. 注释与文档
+
+- **逻辑注释**：重点说明业务原因、算法取舍、临时变通及后续待办。
+- **公共 API**：对外暴露的函数、类、HTTP 接口、适配器 `fetch()` 等须有 Docstring / JSDoc；内部私有 helper 可仅保留类型签名与一行说明。
+- **不堆砌**：不为显而易见的代码写冗长注释。
+
+### 4. 交互与实施节奏
+
+- 发现架构或需求存在明显缺陷时，**先提出质疑与改进建议**，经确认后再编码。
+- 复杂重构或大批量修改前，先输出**分步实施计划**供审查。
+
+---
+
+## 命名与格式规范（按语言分轨）
+
+> 下表为各语言**默认约定**；与团队/仓库既有风格冲突时，以仓库现有代码为准。
+
+### 通用（跨语言）
+
+| 对象 | 约定 |
+|------|------|
+| 常量 / 环境变量键 | `UPPER_SNAKE_CASE` |
+| 目录名、普通文件名（非类文件） | `kebab-case`（如 `hot-news-collector`） |
+| 单行长度 | 建议 ≤ 120 字符 |
+| 文件末尾 | 保留一个换行 |
+
+### Python
+
+| 对象 | 约定 | 示例 |
+|------|------|------|
+| 模块 / 包文件 | `snake_case` | `juejin_fetch.py` |
+| 类 | `PascalCase` | `JuejinFetcher` |
+| 函数 / 方法 / 变量 / 参数 | `snake_case` | `fetch_hot_list`, `hot_score` |
+| 常量 | `UPPER_SNAKE_CASE` | `DEFAULT_TIMEOUT` |
+| 私有成员 | 单下划线前缀 `_internal` | `_parse_response` |
+| 缩进 | **4 空格**（PEP 8） |
+
+遵循 PEP 8；所有函数/方法须有 **Type Hints**（如 `def fetch(self) -> list[Article]:`）。
+
+### Java
+
+| 对象 | 约定 | 示例 |
+|------|------|------|
+| 类 / 接口 / 枚举 / 注解 | `PascalCase` | `HotNewsAdapter`, `ArticleFetcher` |
+| 方法 / 变量 / 参数 | `camelCase` | `fetchHotList`, `hotScore` |
+| 常量（`static final`） | `UPPER_SNAKE_CASE` | `DEFAULT_TIMEOUT_MS` |
+| 包名 | 全小写，点分隔 | `com.example.hotnews.adapter` |
+| 实现类（可选） | 接口名 + `Impl` | `WeComDispatcherImpl` |
+| 缩进 | 常见为 **4 空格**（以项目 `editorconfig` / Checkstyle 为准） |
+
+### 前端（TypeScript / JavaScript / CSS）
+
+| 对象 | 约定 | 示例 |
+|------|------|------|
+| React / Vue 组件文件 | `PascalCase.tsx` / `.vue` | `HotNewsCard.tsx` |
+| 组件名（导出） | `PascalCase` | `HotNewsCard` |
+| 函数 / 变量 / 钩子 | `camelCase` | `useHotNews`, `fetchList` |
+| 类型 / 接口 | `PascalCase` | `Article`, `FetchOptions` |
+| 常量 | `UPPER_SNAKE_CASE` 或 `camelCase`（以项目 ESLint 为准） | `API_BASE_URL` |
+| CSS 类名（非 CSS Modules） | `kebab-case` 或 BEM | `hot-news-card` |
+| CSS Modules 导出 | 按项目约定（常为 `camelCase`） | `styles.cardTitle` |
+| 缩进 | 常见为 **2 空格**（以 Prettier / ESLint 为准） |
+
+**TypeScript**：严禁滥用 `any`；不确定时用 `unknown` + 类型守卫。优先 `async/await`；流式或 Promise 组合场景可用 `.then()`。优先 ES6+（`?.`、`??`、解构等）。
+
+---
+
+## Git 提交信息 (Conventional Commits)
+
+仅在用户明确要求提交时协助撰写，格式：`<type>(<scope>): <subject>`
+
+| type | 含义 |
+|------|------|
+| `feat` | 新功能 |
+| `fix` | 修复 Bug |
+| `docs` | 仅文档/注释 |
+| `style` | 格式、空格等，不改逻辑 |
+| `refactor` | 重构 |
+| `perf` | 性能优化 |
+| `test` | 测试 |
+| `chore` | 构建、依赖、杂项 |
+| `ci` | CI 配置 |
+
+`subject` 使用祈使句、简明说明「为什么」，避免空洞的「update code」。
+
+---
+
+## 安全与性能检查清单
+
+交付前自检：
+
+1. **密钥**：Token、Webhook Key、密码不得硬编码；使用环境变量或 `config.yaml`（且勿提交含密钥的文件）。
+2. **日志**：日志中不打印完整 Token 或密钥。
+3. **网络采集**：设置合理超时；避免无限重试；注意频率，避免被封禁。
+4. **循环与递归**：`while`、递归、`useEffect` 依赖须有明确退出条件。
+5. **资源释放**：定时器、事件监听、未完成的订阅在组件卸载或进程退出时清理。
+
+---
+
+## 与本仓库 (HotNews) 的补充说明
+
+- 本项目以 **Python** 为主：适配器、推送、报告脚本均使用 **snake_case** 命名。
+- 配置见 `config.yaml.example`；密钥通过环境变量或本地 `config.yaml`（已 gitignore）注入。

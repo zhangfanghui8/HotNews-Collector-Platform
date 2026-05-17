@@ -119,15 +119,21 @@ python main.py --push
 
 ## 扩展新平台
 
-1. 在 `scripts/adapters/` 下新建适配器，继承 `BaseFetch`，实现 `fetch() -> List[Article]`
-2. 在 `main.py` 的 `ADAPTERS` 列表中注册实例
+1. 在 `scripts/adapters/` 下新建 **一个** 适配器文件（一平台一文件），继承 `BaseFetch`，实现 `fetch() -> List[Article]`
+2. 若平台同时有「最热」与「最新」，在同一类中用 `mode` 区分（如 `hot` / `latest`），勿拆成两个 py
+3. 在 `main.py` 的 `ADAPTERS` 中，**每个维度注册一行**
 
 ```python
 ADAPTERS = [
-    JuejinFetcher(),
-    # YourPlatformFetcher(),
+    JuejinFetcher(mode="hot"),
+    JuejinFetcher(mode="latest"),
+    QbitaiFetcher(),
+    # Kr36Fetcher(mode="hot"),
+    # Kr36Fetcher(mode="latest"),
 ]
 ```
+
+详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [prompt.md](prompt.md)。
 
 ## Roadmap
 
