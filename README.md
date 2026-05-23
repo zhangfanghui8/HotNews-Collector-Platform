@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **热榜采集**：适配器模式接入各平台（当前已接入掘金 AI 热榜）
+- **热榜采集**：适配器模式接入多平台（掘金：最热+最新；量子位、36氪、InfoQ 等）
 - **结构化报告**：终端输出完整 Markdown；推送使用精简版正文
 - **多渠道推送**：企业微信群机器人、PushPlus（个人微信）、钉钉群机器人
 - **配置引导**：推送未就绪或失败时，终端输出分步骤排查指引
@@ -37,7 +37,10 @@ HotNews-Collector-Platform/
 │   │   ├── core/
 │   │   │   ├── article.py       # 统一文章模型
 │   │   │   └── base_fetch.py    # 适配器抽象基类
-│   │   └── juejinfetch.py       # 掘金热榜
+│   │   ├── juejinfetch.py       # 掘金热榜 / 最新
+│   │   ├── qbitai_fetch.py      # 量子位最新
+│   │   ├── kr36_fetch.py        # 36氪热榜
+│   │   └── infoq_fetch.py       # InfoQ AI 话题
 │   ├── format_report.py         # Markdown 报告生成
 │   └── dispatchers/
 │       ├── core/
@@ -63,6 +66,86 @@ HotNews-Collector-Platform/
 | `category` | 分类 |
 | `rank` | 榜单排名 |
 | `hot_score` | 热度值 |
+
+## 资讯渠道对接情况
+
+**概念约定**
+
+- **渠道**：指资讯平台（如掘金、量子位），一个平台算一个渠道。
+- **维度**：同一渠道下的不同列表类型，常见为 **最热**、**最新**（另有推荐、专题等，视平台而定）。
+- 报告中 `source` 字段会带上维度后缀（如 `掘金·人工智能·热榜`），便于区分条目来源；统计渠道数量时仍按**平台**计。
+
+默认每个「渠道 × 维度」组合各拉取 **10 条**（`DEFAULT_LIMIT = 10`），多源**不做去重**。当前 **4 个渠道**、**5 个采集维度**、合计约 **50 条/次**。
+
+### 已对接一览（按渠道）
+
+| 渠道 | 维度 | 报告中的 `source` | 适配器 | 接口 | 状态 |
+|------|------|-------------------|--------|------|------|
+| **掘金** | 最热 | 掘金·人工智能·热榜 | `juejinfetch.py` | `GET article_rank?type=hot` | ✅ |
+| **掘金** | 最新 | 掘金·人工智能·最新 | `juejinfetch.py` | `POST recommend_cate_feed`（`sort_type=300`） | ✅ |
+| **量子位** | 最新 | 量子位 | `qbitai_fetch.py` | WordPress `GET /wp-json/wp/v2/posts` | ✅ |
+| **36氪** | 最热 | 36氪·热榜 | `kr36_fetch.py` | gateway `POST .../nav/rank/hot` | ✅ |
+| **InfoQ 中文** | 专题最新 | InfoQ·AI&大模型 | `infoq_fetch.py` | `topic/getInfo` + `article/getList` | ✅ |
+
+### 各渠道说明
+
+#### 掘金（1 个渠道，2 个维度）
+
+| 维度 | 说明 |
+|------|------|
+| **最热** | 人工智能分类热榜，含 `hot_rank`，与官网热榜一致。 |
+| **最新** | 同分类按发布时间倒序；非热榜。 |
+
+实现：`JuejinFetcher(mode="hot")` 与 `JuejinFetcher(mode="latest")` 共用 `juejinfetch.py`，在 `ADAPTERS` 中注册两次。
+
+未接入维度：综合分类热榜（可改 `category_id`）、推荐流等。
+
+#### 量子位（1 个渠道，1 个维度）
+
+| 维度 | 说明 |
+|------|------|
+| **最新** | WordPress 公开接口，按发布时间。 |
+
+未接入维度：首页「热门文章」（需 HTML 解析，约 5 条）。
+
+#### 36氪（1 个渠道，1 个维度）
+
+| 维度 | 说明 |
+|------|------|
+| **最热** | 人气榜。 |
+
+未接入维度：最新/快讯（需签名）、热议榜、收藏榜、视频榜。
+
+#### InfoQ 中文（1 个渠道，1 个维度）
+
+| 维度 | 说明 |
+|------|------|
+| **专题最新** | 默认 AI 话题（「AI&大模型」），非全站热榜。 |
+
+未接入维度：全站推荐 RSS、其他话题（架构、云原生等）。
+
+### 当前 `main.py` 注册
+
+```python
+ADAPTERS = [
+    JuejinFetcher(mode="hot"),      # 掘金·人工智能·热榜
+    JuejinFetcher(mode="latest"),   # 掘金·人工智能·最新
+    QbitaiFetcher(),                # 量子位
+    Kr36HotFetcher(),               # 36氪·热榜
+    InfoQFetcher(),                 # InfoQ·AI&大模型
+]
+```
+
+### 计划对接（未实现）
+
+| 平台 | 维度 | 说明 |
+|------|------|------|
+| 知乎 | 热榜 | RSSHub 或站内接口 |
+| 机器之心 | 最新 / 热榜 | 待调研稳定数据源 |
+| 36氪 | 快讯、热议榜等 | 快讯需签名；其他榜可用第三方聚合 |
+| 量子位 | 首页「热门文章」 | 需 HTML 解析，约 5 条 |
+| 掘金 | 综合分类热榜 | 修改 `category_id` 即可扩展 |
+| GitHub Trending | 日/周/月趋势 | 见 `docs/GITHUB_TRENDING_COLLECTION.md`，偏仓库非资讯站 |
 
 ## 快速开始
 
@@ -119,30 +202,31 @@ python main.py --push
 
 ## 扩展新平台
 
-1. 在 `scripts/adapters/` 下新建 **一个** 适配器文件（一平台一文件），继承 `BaseFetch`，实现 `fetch() -> List[Article]`
-2. 若平台同时有「最热」与「最新」，在同一类中用 `mode` 区分（如 `hot` / `latest`），勿拆成两个 py
-3. 在 `main.py` 的 `ADAPTERS` 中，**每个维度注册一行**
+1. 在 `scripts/adapters/` 下新建适配器，继承 `BaseFetch`，实现 `fetch() -> List[Article]`
+2. 在 `main.py` 的 `ADAPTERS` 列表中注册实例
 
 ```python
 ADAPTERS = [
     JuejinFetcher(mode="hot"),
     JuejinFetcher(mode="latest"),
     QbitaiFetcher(),
-    # Kr36Fetcher(mode="hot"),
-    # Kr36Fetcher(mode="latest"),
+    Kr36HotFetcher(),
+    InfoQFetcher(),
+    # YourPlatformFetcher(),
 ]
 ```
 
-详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [prompt.md](prompt.md)。
-
 ## Roadmap
 
-- [x] 掘金 AI 热榜适配器
+- [x] 掘金（最热 + 最新两个维度）
+- [x] 量子位最新
+- [x] 36氪人气热榜
+- [x] InfoQ AI 话题
 - [x] Markdown 结构化报告
 - [x] 多渠道推送（企业微信 / PushPlus / 钉钉）
 - [x] 推送配置检查与失败引导
 - [x] Cursor Skill 文档（`SKILL.md`）
-- [ ] 36氪、知乎等平台适配器
+- [ ] 知乎、机器之心等平台适配器
 - [ ] 多源去重（基于标题相似度）
 - [ ] LLM 智能摘要（接入 API 自动提炼要点）
 - [ ] 定时任务与飞书推送

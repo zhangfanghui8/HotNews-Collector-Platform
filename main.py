@@ -1,7 +1,9 @@
 import argparse
 from datetime import datetime
 
+from scripts.adapters.infoq_fetch import InfoQFetcher
 from scripts.adapters.juejinfetch import JuejinFetcher
+from scripts.adapters.kr36_fetch import Kr36HotFetcher
 from scripts.adapters.qbitai_fetch import QbitaiFetcher
 from scripts.dispatchers import build_dispatchers, dispatch_all
 from scripts.dispatchers.core.config import load_config
@@ -15,6 +17,8 @@ ADAPTERS = [
     JuejinFetcher(mode="hot"),
     JuejinFetcher(mode="latest"),
     QbitaiFetcher(),
+    Kr36HotFetcher(),
+    InfoQFetcher(),
 ]
 
 DEFAULT_LIMIT = 10
