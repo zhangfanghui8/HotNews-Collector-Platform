@@ -13,13 +13,14 @@
 ## 架构设计
 
 ```
-采集 (Adapter) → 格式化 (format_report) → 分发 (Dispatcher)
+采集 (Adapter) → 规则层 (post_process) → 格式化 (format_report) → 分发 (Dispatcher，可选)
 ```
 
 | 层级 | 目录 | 职责 |
 |------|------|------|
 | **Adapter** | `scripts/adapters/` | 各平台 HTTP 请求与数据清洗，统一返回 `Article` |
-| **Report** | `scripts/format_report.py` | 生成完整报告 / 推送用精简 Markdown |
+| **Post-process** | `scripts/post_process.py` | URL 去重、标题相似合并、分源排序 |
+| **Report** | `scripts/format_report.py` | 分源 Markdown / 推送精简版 |
 | **Dispatcher** | `scripts/dispatchers/` | 读取配置，向微信、钉钉等渠道发送消息 |
 
 ## 目录结构
@@ -42,6 +43,7 @@ HotNews-Collector-Platform/
 │   │   ├── kr36_fetch.py        # 36氪热榜
 │   │   └── infoq_fetch.py       # InfoQ AI 话题
 │   ├── format_report.py         # Markdown 报告生成
+│   ├── post_process.py          # URL/标题去重、分源排序
 │   └── dispatchers/
 │       ├── core/
 │       │   ├── base.py          # 推送器基类
@@ -75,7 +77,17 @@ HotNews-Collector-Platform/
 - **维度**：同一渠道下的不同列表类型，常见为 **最热**、**最新**（另有推荐、专题等，视平台而定）。
 - 报告中 `source` 字段会带上维度后缀（如 `掘金·人工智能·热榜`），便于区分条目来源；统计渠道数量时仍按**平台**计。
 
-默认每个「渠道 × 维度」组合各拉取 **10 条**（`DEFAULT_LIMIT = 10`），多源**不做去重**。当前 **4 个渠道**、**5 个采集维度**、合计约 **50 条/次**。
+默认每个「渠道 × 维度」组合各拉取 **10 条**（`python main.py --limit 10`），经规则层 URL/标题去重后合并为候选池。当前 **4 个渠道**、**5 个采集维度**、原始约 **50 条/次**。
+
+### 数据处理分工
+
+| 层级 | 模块 | 职责 |
+|------|------|------|
+| L1 采集 | `main.py` + adapters | 各维度 `fetch(limit)` |
+| L2 规则层 | `post_process.py` | 分源排序、URL 去重、标题相似合并 |
+| L3 Agent | `SKILL.md` | 按用户诉求选条数、主题、写总结 |
+
+Agent 深度筛选时可执行 `python main.py --json` 获取完整结构化候选池。
 
 ### 已对接一览（按渠道）
 
@@ -160,10 +172,11 @@ pip install -r requirements.txt
 ### 2. 采集并生成报告
 
 ```bash
-python main.py
+python main.py              # 分源 Markdown 报告
+python main.py --limit 15     # 每维度拉 15 条
+python main.py --json         # JSON 候选池（供 Agent 筛选）
+python main.py --push         # 采集 + 推送
 ```
-
-终端将输出完整 Markdown 热点报告。
 
 ### 3. 推送到微信 / 钉钉（可选）
 
@@ -226,8 +239,9 @@ ADAPTERS = [
 - [x] 多渠道推送（企业微信 / PushPlus / 钉钉）
 - [x] 推送配置检查与失败引导
 - [x] Cursor Skill 文档（`SKILL.md`）
+- [x] 规则层：URL/标题去重、分源排序（`post_process.py`）
+- [x] CLI：`--limit`、`--json`
 - [ ] 知乎、机器之心等平台适配器
-- [ ] 多源去重（基于标题相似度）
 - [ ] LLM 智能摘要（接入 API 自动提炼要点）
 - [ ] 定时任务与飞书推送
 

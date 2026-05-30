@@ -20,3 +20,15 @@ class Article:
         self.category = category
         self.rank = rank
         self.hot_score = hot_score
+
+    def to_dict(self) -> dict:
+        return {
+            "title": self.title,
+            "url": self.url,
+            "source": self.source,
+            "publish_time": self.publish_time,
+            "summary": self.summary,
+            "category": self.category,
+            "rank": self.rank,
+            "hot_score": self.hot_score,
+        }

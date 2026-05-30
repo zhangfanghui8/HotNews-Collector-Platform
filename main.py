@@ -1,4 +1,5 @@
 import argparse
+import json
 from datetime import datetime
 
 from scripts.adapters.infoq_fetch import InfoQFetcher
@@ -12,6 +13,7 @@ from scripts.dispatchers.push_guide import (
     format_send_results,
 )
 from scripts.format_report import format_markdown, format_push_markdown
+from scripts.post_process import process_articles
 
 ADAPTERS = [
     JuejinFetcher(mode="hot"),
@@ -31,14 +33,14 @@ def collect(limit: int = DEFAULT_LIMIT):
     return articles
 
 
-def push_report(articles, config) -> None:
+def push_report(articles, grouped, config) -> None:
     readiness = check_push_readiness(config)
     if not readiness.ready:
         print(readiness.format_message())
         return
 
     title = f"AI技术热点 {datetime.now().strftime('%Y-%m-%d')}"
-    content = format_push_markdown(articles)
+    content = format_push_markdown(articles, grouped=grouped)
     results = dispatch_all(title, content, config)
 
     any_success = False
@@ -62,15 +64,43 @@ def main():
         action="store_true",
         help="推送到 config.yaml 中已启用的微信渠道",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        metavar="N",
+        help=f"每个采集维度拉取条数（默认 {DEFAULT_LIMIT}）",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="输出 JSON（含 stats、分源 articles），供 Agent 筛选",
+    )
     args = parser.parse_args()
 
+    if args.limit < 1:
+        parser.error("--limit 须为正整数")
+
     config = load_config()
-    articles = collect(limit=DEFAULT_LIMIT)
-    print(format_markdown(articles))
+    raw_articles = collect(limit=args.limit)
+    articles, stats, grouped = process_articles(raw_articles)
+
+    if args.json:
+        payload = {
+            "stats": stats.to_dict(),
+            "sources": {
+                source: [a.to_dict() for a in items]
+                for source, items in grouped.items()
+            },
+            "articles": [a.to_dict() for a in articles],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(format_markdown(articles, grouped=grouped, stats=stats))
 
     push_enabled = args.push or config.get("push", {}).get("enabled", False)
     if push_enabled:
-        push_report(articles, config)
+        push_report(articles, grouped, config)
 
 
 if __name__ == "__main__":

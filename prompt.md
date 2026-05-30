@@ -11,14 +11,15 @@
 ## 固定分层（勿打破）
 
 ```
-采集 Adapter → 格式化 format_report → 分发 Dispatcher（可选）
+采集 Adapter → 规则层 post_process → 格式化 format_report → 分发 Dispatcher（可选）
 ```
 
 | 层级 | 目录 | 职责 |
 |------|------|------|
-| 入口 | `main.py` | 注册 `ADAPTERS`、调用采集、出报告、`--push` |
+| 入口 | `main.py` | 注册 `ADAPTERS`、`--limit`/`--json`/`--push` |
 | 采集 | `scripts/adapters/` | 各平台 HTTP + 清洗，统一 `Article` |
-| 报告 | `scripts/format_report.py` | Markdown 完整版 / 推送精简版 |
+| 规则层 | `scripts/post_process.py` | URL/标题去重、分源排序（不做跨源 hot_score 排序） |
+| 报告 | `scripts/format_report.py` | 分源 Markdown / 推送精简版 |
 | 推送 | `scripts/dispatchers/` | 读 `config.yaml`，多渠道发送 |
 
 ## 动手前先对齐现有模式
