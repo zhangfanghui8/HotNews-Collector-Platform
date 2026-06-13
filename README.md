@@ -41,7 +41,8 @@ HotNews-Collector-Platform/
 │   │   ├── juejinfetch.py       # 掘金热榜 / 最新
 │   │   ├── qbitai_fetch.py      # 量子位最新
 │   │   ├── kr36_fetch.py        # 36氪热榜
-│   │   └── infoq_fetch.py       # InfoQ AI 话题
+│   │   ├── infoq_fetch.py       # InfoQ AI 话题
+│   │   └── douyin_fetch.py      # 抖音（TikHub / 官方，需配置）
 │   ├── format_report.py         # Markdown 报告生成
 │   ├── post_process.py          # URL/标题去重、分源排序
 │   └── dispatchers/
@@ -77,7 +78,7 @@ HotNews-Collector-Platform/
 - **维度**：同一渠道下的不同列表类型，常见为 **最热**、**最新**（另有推荐、专题等，视平台而定）。
 - 报告中 `source` 字段会带上维度后缀（如 `掘金·人工智能·热榜`），便于区分条目来源；统计渠道数量时仍按**平台**计。
 
-默认每个「渠道 × 维度」组合各拉取 **10 条**（`python main.py --limit 10`），经规则层 URL/标题去重后合并为候选池。当前 **4 个渠道**、**5 个采集维度**、原始约 **50 条/次**。
+默认每个「渠道 × 维度」组合各拉取 **10 条**（`python main.py --limit 10`），经规则层 URL/标题去重后合并为候选池。当前 **5 个渠道**、**7 个采集维度**（抖音可选，未配置则约 50 条/次；配置后约 70 条/次）。
 
 ### 数据处理分工
 
@@ -98,6 +99,8 @@ Agent 深度筛选时可执行 `python main.py --json` 获取完整结构化候�
 | **量子位** | 最新 | 量子位 | `qbitai_fetch.py` | WordPress `GET /wp-json/wp/v2/posts` | ✅ |
 | **36氪** | 最热 | 36氪·热榜 | `kr36_fetch.py` | gateway `POST .../nav/rank/hot` | ✅ |
 | **InfoQ 中文** | 专题最新 | InfoQ·AI&大模型 | `infoq_fetch.py` | `topic/getInfo` + `article/getList` | ✅ |
+| **抖音** | 最热 | 抖音·热榜·TikHub / 官方 | `douyin_fetch.py` | TikHub 热搜榜 / 官方热门视频榜 | ⚙️ 需配置 |
+| **抖音** | 上升/实时 | 抖音·上升·TikHub / 实时热点·官方 | `douyin_fetch.py` | TikHub 上升榜 / 官方热点词 | ⚙️ 需配置 |
 
 ### 各渠道说明
 
@@ -136,6 +139,15 @@ Agent 深度筛选时可执行 `python main.py --json` 获取完整结构化候�
 
 未接入维度：全站推荐 RSS、其他话题（架构、云原生等）。
 
+#### 抖音（1 个渠道，2 个维度，可选）
+
+| 维度 | TikHub | 官方开放平台 |
+|------|--------|--------------|
+| **最热** | `fetch_hot_search_list` 热点榜 | `billboard/hot_video` 热门视频榜 |
+| **最新/上升** | `fetch_real_time_rising_hot_list` | `hotsearch/sentences` 实时热点词 |
+
+配置见 `config.yaml.example` 的 `douyin` 段。`provider: auto` 时优先 TikHub（有 `api_key`），否则官方。未配置密钥时**静默跳过**（终端提示一次），不影响其他渠道。
+
 ### 当前 `main.py` 注册
 
 ```python
@@ -145,6 +157,8 @@ ADAPTERS = [
     QbitaiFetcher(),                # 量子位
     Kr36HotFetcher(),               # 36氪·热榜
     InfoQFetcher(),                 # InfoQ·AI&大模型
+    DouyinFetcher(mode="hot"),      # 抖音·热榜（需 config）
+    DouyinFetcher(mode="latest"),   # 抖音·上升/实时（需 config）
 ]
 ```
 
@@ -172,7 +186,9 @@ pip install -r requirements.txt
 ### 2. 采集并生成报告
 
 ```bash
-python main.py              # 分源 Markdown 报告
+python main.py              # 分源 Markdown 报告（全部维度）
+python main.py --dimension hot --limit 10    # 仅各渠道最热
+python main.py --dimension latest --limit 10 # 仅各渠道最新
 python main.py --limit 15     # 每维度拉 15 条
 python main.py --json         # JSON 候选池（供 Agent 筛选）
 python main.py --push         # 采集 + 推送
@@ -240,7 +256,8 @@ ADAPTERS = [
 - [x] 推送配置检查与失败引导
 - [x] Cursor Skill 文档（`SKILL.md`）
 - [x] 规则层：URL/标题去重、分源排序（`post_process.py`）
-- [x] CLI：`--limit`、`--json`
+- [x] CLI：`--limit`、`--json`、`--dimension`
+- [x] 抖音热点（TikHub / 官方双通道，可选配置）
 - [ ] 知乎、机器之心等平台适配器
 - [ ] LLM 智能摘要（接入 API 自动提炼要点）
 - [ ] 定时任务与飞书推送

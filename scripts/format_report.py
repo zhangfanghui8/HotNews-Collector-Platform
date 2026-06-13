@@ -17,11 +17,15 @@ def _format_item(index: int, article: Article) -> List[str]:
     ]
 
 
+_DIMENSION_LABELS = {"all": "全部维度", "hot": "最热", "latest": "最新"}
+
+
 def format_markdown(
     articles: List[Article],
     *,
     grouped: Optional[Dict[str, List[Article]]] = None,
     stats: Optional[ProcessStats] = None,
+    dimension: str = "all",
 ) -> str:
     if not articles:
         return "未采集到热点数据，请检查网络连接或项目适配器配置。"
@@ -39,16 +43,28 @@ def format_markdown(
     else:
         dedupe_note = f"共 {len(articles)} 条"
 
+    scope_note = (
+        f"- 采集范围：{_DIMENSION_LABELS.get(dimension, dimension)}"
+        if dimension != "all"
+        else ""
+    )
+
     lines = [
         f"# 📅 国内 AI 与技术热点资讯汇总（{date_str}）",
         "",
         "## 📊 今日概览",
         f"- 数据处理：{dedupe_note}",
+    ]
+    if scope_note:
+        lines.append(scope_note)
+    lines.extend(
+        [
         f"- 信息来源：{'、'.join(sources)}（{len(sources)} 个维度）",
         "- 主要热点主题：（请 Agent 根据下方列表提炼 3-5 个关键词）",
         "",
         "## 🔍 各源速览（每源 Top 1，轮流采样，供 Agent 快速浏览）",
-    ]
+        ]
+    )
 
     if grouped:
         for article in pick_balanced_samples(grouped, max_items=len(sources)):

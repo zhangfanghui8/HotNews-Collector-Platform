@@ -25,3 +25,19 @@ push:
       access_token: ""
       # 若机器人安全设置为「加签」，填写 SEC 开头的 secret；否则留空
       secret: ""
+
+# 抖音热点（可选；未配置时跳过，不影响其他渠道）
+# 数据源二选一或 auto（有 TikHub Key 优先 TikHub，否则官方）
+douyin:
+  # auto | tikhub | official
+  provider: auto
+
+  # 方案一：TikHub（https://tikhub.io 注册获取 API Key，按量付费）
+  tikhub:
+    api_key: ""
+
+  # 方案二：抖音开放平台（https://open.douyin.com 企业应用 client_key / client_secret）
+  # hot → 热门视频榜；latest → 实时热点词（需申请 hotsearch / billboard 等数据权限）
+  official:
+    client_key: ""
+    client_secret: ""
