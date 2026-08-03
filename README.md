@@ -1,4 +1,4 @@
-# HotNews Collector Platform
+# daily-china-hot-news-digest
 
 模块化 AI 资讯采集与推送平台，同时作为 **Cursor Agent Skill** 使用：从国内技术与 AI 平台拉取热榜，生成结构化 Markdown 报告，并可推送到微信、钉钉等即时通讯工具。
 
